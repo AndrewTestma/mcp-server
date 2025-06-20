@@ -2,11 +2,14 @@ package search
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/cloudwego/eino-ext/components/tool/duckduckgo" // 假设使用DuckDuckGo搜索
 	"github.com/cloudwego/eino-ext/components/tool/duckduckgo/ddgsearch"
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/mark3labs/mcp-go/mcp"
+	"go.uber.org/zap"
+	"mcp-server/internal/log"
 	tol "mcp-server/internal/tool"
 	"time"
 )
@@ -16,6 +19,8 @@ type SearchTool struct {
 	impl tool.InvokableTool
 	cfg  *Config
 }
+
+var logger = log.GetLogger()
 
 // Config 搜索工具配置
 type Config struct {
@@ -33,12 +38,16 @@ func NewSearchTool(ctx context.Context, cfg any, deps tol.Dependencies) (tol.Too
 	impl, err := duckduckgo.NewTool(ctx, &duckduckgo.Config{
 		ToolName:   "web_search",
 		ToolDesc:   "网页搜索工具（获取实时信息）",
-		MaxResults: 5, // 默认结果数量
+		MaxResults: 5,                  // 默认结果数量
+		Region:     ddgsearch.RegionCN, // 使用中国区域
 		DDGConfig: &ddgsearch.Config{
-			Timeout: parseDuration(searchCfg.CacheDuration),
+			Timeout:    parseDuration(searchCfg.CacheDuration),
+			MaxRetries: 5,                        // 重试次数
+			Proxy:      "http://127.0.0.1:10808", // 代理地址
 		},
 	})
 	if err != nil {
+		logger.Error("create search tool failed: %w", zap.Error(err))
 		return nil, fmt.Errorf("create search tool failed: %w", err)
 	}
 
@@ -64,7 +73,6 @@ func (t *SearchTool) GetDescriptor() *mcp.Tool {
 	tol := mcp.NewTool("web_search",
 		mcp.WithDescription("网页搜索工具（获取实时信息）"),
 		mcp.WithString("query", mcp.Required(), mcp.Description("搜索关键词")),
-		mcp.WithString("limit", mcp.Description("结果数量限制")),
 	)
 	return &tol
 }
@@ -77,26 +85,21 @@ func (t *SearchTool) Execute(ctx context.Context, req mcp.CallToolRequest) (*mcp
 		return mcp.NewToolResultError("参数格式错误: 需要是map类型"), nil
 	}
 
-	query, ok := args["query"].(string)
-	if !ok {
-		return mcp.NewToolResultError("缺少或无效的query参数"), nil
-	}
-	//var limit int
-	//if limitVal, ok := args["limit"]; ok {
-	//	switch v := limitVal.(type) {
-	//	case int:
-	//		limit = v
-	//	case float64:
-	//		limit = int(v)
-	//	default:
-	//		return mcp.NewToolResultError("limit参数必须是数字"), nil
-	//	}
-	//} else {
-	//	limit = 5 // 默认值
+	//query, ok := args["query"].(string)
+	//if !ok {
+	//	return mcp.NewToolResultError("缺少或无效的query参数"), nil
 	//}
 
+	searchReq := &duckduckgo.SearchRequest{
+		Query: "Golang programming development",
+		Page:  1,
+	}
+	jsonReq, err := json.Marshal(searchReq)
+	if err != nil {
+		logger.Error("参数序列化失败", zap.Error(err))
+	}
 	// 调用 InvokableTool 接口
-	result, err := t.impl.InvokableRun(ctx, fmt.Sprintf(`{"query":"%s","limit":%d}`, query, 10))
+	result, err := t.impl.InvokableRun(ctx, string(jsonReq))
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("搜索失败: %v", err)), nil
 	}
