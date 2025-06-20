@@ -6,7 +6,7 @@ import (
 	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/mark3labs/mcp-go/server"
 	"log"
-	"mcp-server/internal/config"
+	"mcp-server/config"
 	"mcp-server/internal/tool"
 	"mcp-server/internal/tools/browseruse"
 	"mcp-server/internal/tools/search"
@@ -21,7 +21,7 @@ func main() {
 
 	// 2. 初始化公共依赖（如OpenAI模型）
 	chatModel, err := openai.NewChatModel(context.Background(), &openai.ChatModelConfig{
-		APIKey:  "sk-xxx", // 从配置/环境变量获取
+		APIKey:  "sk-14d8e0db18214302a2ae13e493094d98", // 从配置/环境变量获取
 		BaseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
 		Model:   "qwen-plus",
 	})
