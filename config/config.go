@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"mcp-server/internal/tools/browseruse"
+	"mcp-server/internal/tools/milvus"
 	"mcp-server/internal/tools/search"
 	"os"
 )
@@ -38,6 +39,12 @@ func LoadConfig(path string) (*AppConfig, error) {
 		return nil, fmt.Errorf("parse search config failed: %w", err)
 	}
 	cfg.Tools["web_search"] = searchCfg
+	// 添加Milvus配置解析
+	milvusCfg := &milvus.Config{}
+	if err := json.Unmarshal(data, milvusCfg); err != nil {
+		return nil, fmt.Errorf("parse milvus config failed: %w", err)
+	}
+	cfg.Tools["milvus"] = milvusCfg
 
 	return &cfg, nil
 }
