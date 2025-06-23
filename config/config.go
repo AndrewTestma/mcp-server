@@ -40,11 +40,26 @@ func LoadConfig(path string) (*AppConfig, error) {
 	}
 	cfg.Tools["web_search"] = searchCfg
 	// 添加Milvus配置解析
-	milvusCfg := &milvus.Config{}
-	if err := json.Unmarshal(data, milvusCfg); err != nil {
-		return nil, fmt.Errorf("parse milvus config failed: %w", err)
+	var rawConfig map[string]json.RawMessage
+	if err := json.Unmarshal(data, &rawConfig); err != nil {
+		return nil, fmt.Errorf("parse raw config failed: %w", err)
 	}
-	cfg.Tools["milvus"] = milvusCfg
+
+	if toolsRaw, ok := rawConfig["tools"]; ok {
+		var toolsMap map[string]json.RawMessage
+		if err := json.Unmarshal(toolsRaw, &toolsMap); err != nil {
+			return nil, fmt.Errorf("parse tools config failed: %w", err)
+		}
+
+		// 单独解析milvus配置
+		if milvusRaw, ok := toolsMap["milvus"]; ok {
+			milvusCfg := &milvus.Config{}
+			if err := json.Unmarshal(milvusRaw, milvusCfg); err != nil {
+				return nil, fmt.Errorf("parse milvus config failed: %w", err)
+			}
+			cfg.Tools["milvus"] = milvusCfg
+		}
+	}
 
 	return &cfg, nil
 }
